@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_2_12 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.2.12) - The device code sign-in flow SHALL be blocked
+    Tests CIS M365 7.0.0 (5.2.2.12) - The device code sign-in flow SHALL be blocked
     #>
     param($Tenant)
 
@@ -13,12 +13,12 @@ function Invoke-CippTestCIS_5_2_2_12 {
             return
         }
 
-        $Matching = $CA | Where-Object {
+        $Matching = $CA.Where({
             $_.state -eq 'enabled' -and
             $_.conditions.authenticationFlows -and
             $_.conditions.authenticationFlows.transferMethods -match 'deviceCodeFlow' -and
             $_.grantControls.builtInControls -contains 'block'
-        }
+        })
 
         if ($Matching) {
             $Status = 'Passed'

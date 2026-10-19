@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_8_4_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (8.4.1) - App permission policies SHALL be configured
+    Tests CIS M365 7.0.0 (8.4.1) - App permission policies SHALL be configured
     #>
     param($Tenant)
 
@@ -13,8 +13,8 @@ function Invoke-CippTestCIS_8_4_1 {
             return
         }
 
-        $Global = $AppPerms | Where-Object { $_.Identity -eq 'Global' } | Select-Object -First 1
-        if (-not $Global) { $Global = $AppPerms | Select-Object -First 1 }
+        $Global = $AppPerms.Where({ $_.Identity -eq 'Global' }, 'First')[0]
+        if (-not $Global) { $Global = @($AppPerms)[0] }
 
         $ThirdParty = $Global.GlobalCatalogAppsType ?? $Global.DefaultCatalogAppsType
         $Restricted = $ThirdParty -in @('BlockedAppList', 'AllowedAppList', 'BlockAllApps')

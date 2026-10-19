@@ -14,9 +14,18 @@ function Invoke-CippTestCopilotReady006 {
 
     try {
         $ReadinessData = Get-CIPPTestData -TenantFilter $Tenant -Type 'CopilotReadinessActivity'
-        $AllUsers = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        # Use licensed active users as the denominator \u2014 users absent from the report have never used M365
+        $UsersSeen = $false
+        $LicensedUsers = [System.Collections.Generic.List[object]]::new()
+        Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'userPrincipalName', 'accountEnabled', 'assignedPlans' -Stream | ForEach-Object {
+            $UsersSeen = $true
+            if ($_.userPrincipalName -and $_.accountEnabled -eq $true -and $_.assignedPlans.Where({ $_.capabilityStatus -eq 'Enabled' }, 'First').Count) {
+                $LicensedUsers.Add([pscustomobject]@{ userPrincipalName = $_.userPrincipalName })
+            }
+        }
 
-        if (-not $ReadinessData -and -not $AllUsers) {
+        if (-not $ReadinessData -and -not $UsersSeen) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady006' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No Copilot readiness activity or user data found in database. Data collection may not yet have run for this tenant.' -Risk 'Medium' -Name 'Users are actively using OneDrive/SharePoint' -UserImpact 'Medium' -ImplementationEffort 'Low' -Category 'Copilot Readiness'
             return
         }
@@ -24,16 +33,10 @@ function Invoke-CippTestCopilotReady006 {
         # Build lookup of readiness data keyed by UPN
         $ReadinessLookup = @{}
         if ($ReadinessData) {
-            foreach ($Entry in ($ReadinessData | Where-Object { $_.userPrincipalName })) {
+            foreach ($Entry in ($ReadinessData.Where({ $_.userPrincipalName }))) {
                 $ReadinessLookup[$Entry.userPrincipalName.ToLower()] = $Entry
             }
         }
-
-        # Use licensed active users as the denominator \u2014 users absent from the report have never used M365
-        $LicensedUsers = @($AllUsers | Where-Object {
-                $_.userPrincipalName -and $_.accountEnabled -eq $true -and
-                ($_.assignedPlans | Where-Object { $_.capabilityStatus -eq 'Enabled' })
-            })
 
         if ($LicensedUsers.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady006' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No licensed active users found in the tenant.' -Risk 'Medium' -Name 'Users are actively using OneDrive/SharePoint' -UserImpact 'Medium' -ImplementationEffort 'Low' -Category 'Copilot Readiness'
@@ -56,18 +59,18 @@ function Invoke-CippTestCopilotReady006 {
 
         if ($ActivityPercent -ge $ActivityThresholdPercent) {
             $Status = 'Passed'
-            $Result = "**$ActiveCount of $TotalUsers licensed users ($ActivityPercent%)** worked on OneDrive or SharePoint files in the past 30 days \u2014 above the $ActivityThresholdPercent% threshold.`n`n"
-            $Result += 'These users are strong candidates for Copilot, which provides the most value when users actively collaborate on files in Microsoft 365.'
+            $Result = [System.Text.StringBuilder]::new("**$ActiveCount of $TotalUsers licensed users ($ActivityPercent%)** worked on OneDrive or SharePoint files in the past 30 days \u2014 above the $ActivityThresholdPercent% threshold.`n`n")
+            $null = $Result.Append('These users are strong candidates for Copilot, which provides the most value when users actively collaborate on files in Microsoft 365.')
         } else {
             $Status = 'Failed'
-            $Result = "Only **$ActiveCount of $TotalUsers licensed users ($ActivityPercent%)** worked on OneDrive or SharePoint files in the past 30 days \u2014 below the $ActivityThresholdPercent% threshold.`n`n"
-            $Result += 'Copilot delivers the most value when users regularly store and collaborate on files in OneDrive and SharePoint. '
-            $Result += "Consider driving file collaboration adoption before or alongside a Copilot rollout.`n`n"
+            $Result = [System.Text.StringBuilder]::new("Only **$ActiveCount of $TotalUsers licensed users ($ActivityPercent%)** worked on OneDrive or SharePoint files in the past 30 days \u2014 below the $ActivityThresholdPercent% threshold.`n`n")
+            $null = $Result.Append('Copilot delivers the most value when users regularly store and collaborate on files in OneDrive and SharePoint. ')
+            $null = $Result.Append("Consider driving file collaboration adoption before or alongside a Copilot rollout.`n`n")
             if ($InactiveUsers.Count -gt 0 -and $InactiveUsers.Count -le 20) {
-                $Result += "**Inactive users (no Office doc activity in 30 days):**`n"
-                foreach ($Upn in $InactiveUsers) { $Result += "- $Upn`n" }
+                $null = $Result.Append("**Inactive users (no Office doc activity in 30 days):**`n")
+                foreach ($Upn in $InactiveUsers) { $null = $Result.Append("- $Upn`n") }
             } elseif ($InactiveUsers.Count -gt 20) {
-                $Result += "**$($InactiveUsers.Count) users** had no OneDrive or SharePoint file activity in the past 30 days."
+                $null = $Result.Append("**$($InactiveUsers.Count) users** had no OneDrive or SharePoint file activity in the past 30 days.")
             }
         }
 

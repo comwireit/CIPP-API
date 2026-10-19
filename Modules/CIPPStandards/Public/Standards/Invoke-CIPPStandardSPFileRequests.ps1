@@ -37,11 +37,11 @@ function Invoke-CIPPStandardSPFileRequests {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
     #>
 
     param($Tenant, $Settings)
-    $TestResult = Test-CIPPStandardLicense -StandardName 'SPFileRequests' -TenantFilter $Tenant -RequiredCapabilities @('SHAREPOINTWAC', 'SHAREPOINTSTANDARD', 'SHAREPOINTENTERPRISE', 'SHAREPOINTENTERPRISE_EDU', 'SHAREPOINTENTERPRISE_GOV', 'ONEDRIVE_BASIC', 'ONEDRIVE_ENTERPRISE')
+    $TestResult = Test-CIPPStandardLicense -StandardName 'SPFileRequests' -TenantFilter $Tenant -Preset SharePoint
 
     if ($TestResult -eq $false) {
         Write-LogMessage -API 'Standards' -tenant $tenant -message 'The tenant is not licenced for this standard SPFileRequests' -sev Error
@@ -145,15 +145,6 @@ function Invoke-CIPPStandardSPFileRequests {
     }
 
     if ($Settings.report -eq $true) {
-        Add-CIPPBPAField -FieldName 'SPFileRequestsEnabled' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $Tenant
-        Add-CIPPBPAField -FieldName 'SPCoreFileRequestsEnabled' -FieldValue $CurrentState.CoreRequestFilesLinkEnabled -StoreAs bool -Tenant $Tenant
-        Add-CIPPBPAField -FieldName 'SPOneDriveFileRequestsEnabled' -FieldValue $CurrentState.OneDriveRequestFilesLinkEnabled -StoreAs bool -Tenant $Tenant
-
-        if ($null -ne $ExpirationDays) {
-            Add-CIPPBPAField -FieldName 'SPCoreFileRequestsExpirationDays' -FieldValue $CurrentState.CoreRequestFilesLinkExpirationInDays -StoreAs string -Tenant $Tenant
-            Add-CIPPBPAField -FieldName 'SPOneDriveFileRequestsExpirationDays' -FieldValue $CurrentState.OneDriveRequestFilesLinkExpirationInDays -StoreAs string -Tenant $Tenant
-        }
-
         $CurrentValue = @{
             CoreRequestFilesLinkEnabled              = $CurrentState.CoreRequestFilesLinkEnabled
             OneDriveRequestFilesLinkEnabled          = $CurrentState.OneDriveRequestFilesLinkEnabled

@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_1_3_6 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.3.6) - Customer Lockbox SHALL be enabled
+    Tests CIS M365 7.0.0 (1.3.6) - Customer Lockbox SHALL be enabled
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_1_3_6 {
             return
         }
 
-        $Cfg = $OrgConfig | Select-Object -First 1
+        $Cfg = @($OrgConfig)[0]
 
         if ($Cfg.CustomerLockBoxEnabled -eq $true) {
             $Status = 'Passed'

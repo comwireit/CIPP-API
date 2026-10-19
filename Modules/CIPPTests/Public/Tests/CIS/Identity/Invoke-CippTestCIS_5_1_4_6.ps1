@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_4_6 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.4.6) - Users SHALL be restricted from recovering BitLocker keys
+    Tests CIS M365 7.0.0 (5.1.4.6) - Users SHALL be restricted from recovering BitLocker keys
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_5_1_4_6 {
             return
         }
 
-        $Cfg = $Auth | Select-Object -First 1
+        $Cfg = @($Auth)[0]
 
         if ($Cfg.defaultUserRolePermissions.allowedToReadBitLockerKeysForOwnedDevice -eq $false) {
             $Status = 'Passed'

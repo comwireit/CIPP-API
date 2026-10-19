@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_1_2_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.2.2) - Sign-in to shared mailboxes SHALL be blocked
+    Tests CIS M365 7.0.0 (1.2.2) - Sign-in to shared mailboxes SHALL be blocked
     #>
     param($Tenant)
 
@@ -14,18 +14,26 @@ function Invoke-CippTestCIS_1_2_2 {
             return
         }
 
-        $SharedMailboxes = $Mailboxes | Where-Object { $_.RecipientTypeDetails -eq 'SharedMailbox' }
+        $SharedMailboxes = $Mailboxes.Where({ $_.RecipientTypeDetails -eq 'SharedMailbox' })
 
         if (-not $SharedMailboxes -or $SharedMailboxes.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_2_2' -TestType 'Identity' -Status 'Passed' -ResultMarkdown 'No shared mailboxes found.' -Risk 'High' -Name 'Sign-in to shared mailboxes is blocked' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Identity'
             return
         }
 
-        $EnabledShared = @()
+        $UsersById = @{}
+        $UsersByUpn = @{}
+        foreach ($U in $Users) {
+            if ($U.id) { $UsersById[$U.id] = $U }
+            if ($U.userPrincipalName) { $UsersByUpn[$U.userPrincipalName] = $U }
+        }
+        $EnabledShared = [System.Collections.Generic.List[object]]::new()
         foreach ($SM in $SharedMailboxes) {
-            $User = $Users | Where-Object { $_.userPrincipalName -eq $SM.UserPrincipalName -or $_.id -eq $SM.ExternalDirectoryObjectId } | Select-Object -First 1
+            $User = $null
+            if ($SM.UserPrincipalName -and $UsersByUpn.ContainsKey($SM.UserPrincipalName)) { $User = $UsersByUpn[$SM.UserPrincipalName] }
+            elseif ($SM.ExternalDirectoryObjectId -and $UsersById.ContainsKey($SM.ExternalDirectoryObjectId)) { $User = $UsersById[$SM.ExternalDirectoryObjectId] }
             if ($User -and $User.accountEnabled -eq $true) {
-                $EnabledShared += $User
+                $EnabledShared.Add($User)
             }
         }
 
@@ -35,7 +43,7 @@ function Invoke-CippTestCIS_1_2_2 {
         } else {
             $Status = 'Failed'
             $Result = "$($EnabledShared.Count) of $($SharedMailboxes.Count) shared mailbox(es) have sign-in enabled:`n`n"
-            $Result += ($EnabledShared | Select-Object -First 25 | ForEach-Object { "- $($_.userPrincipalName)" }) -join "`n"
+            $Result += ($EnabledShared.Where({ $true }, 'First', 25) | ForEach-Object { "- $($_.userPrincipalName)" }) -join "`n"
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_2_2' -TestType 'Identity' -Status $Status -ResultMarkdown $Result -Risk 'High' -Name 'Sign-in to shared mailboxes is blocked' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Identity'

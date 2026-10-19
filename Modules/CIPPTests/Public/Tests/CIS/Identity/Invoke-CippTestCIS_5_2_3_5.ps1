@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_3_5 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.3.5) - Weak authentication methods SHALL be disabled (SMS, Voice)
+    Tests CIS M365 7.0.0 (5.2.3.5) - Weak authentication methods SHALL be disabled (SMS, Voice)
     #>
     param($Tenant)
 
@@ -13,9 +13,9 @@ function Invoke-CippTestCIS_5_2_3_5 {
             return
         }
 
-        $Cfg = $AMP | Select-Object -First 1
-        $Sms = $Cfg.authenticationMethodConfigurations | Where-Object { $_.id -eq 'Sms' } | Select-Object -First 1
-        $Voice = $Cfg.authenticationMethodConfigurations | Where-Object { $_.id -eq 'Voice' } | Select-Object -First 1
+        $Cfg = @($AMP)[0]
+        $Sms = $Cfg.authenticationMethodConfigurations.Where({ $_.id -eq 'Sms' }, 'First')[0]
+        $Voice = $Cfg.authenticationMethodConfigurations.Where({ $_.id -eq 'Voice' }, 'First')[0]
 
         $SmsDisabled = -not $Sms -or $Sms.state -eq 'disabled'
         $VoiceDisabled = -not $Voice -or $Voice.state -eq 'disabled'

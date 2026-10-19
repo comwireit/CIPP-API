@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_2_7 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.2.7) - Identity Protection sign-in risk policies SHALL be enabled
+    Tests CIS M365 7.0.0 (5.2.2.7) - Identity Protection sign-in risk policies SHALL be enabled
     #>
     param($Tenant)
 
@@ -13,11 +13,11 @@ function Invoke-CippTestCIS_5_2_2_7 {
             return
         }
 
-        $Matching = $CA | Where-Object {
+        $Matching = $CA.Where({
             $_.state -eq 'enabled' -and
             $_.conditions.signInRiskLevels -and
             $_.conditions.signInRiskLevels.Count -gt 0
-        }
+        })
 
         if ($Matching) {
             $Status = 'Passed'

@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_7_3_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (7.3.1) - Office 365 SharePoint infected files SHALL be disallowed for download
+    Tests CIS M365 7.0.0 (7.3.1) - Office 365 SharePoint infected files SHALL be disallowed for download
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_7_3_1 {
             return
         }
 
-        $Cfg = $SPO | Select-Object -First 1
+        $Cfg = @($SPO)[0]
 
         if ($Cfg.DisallowInfectedFileDownload -eq $true) {
             $Status = 'Passed'

@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_5_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.5.1) - User consent to apps accessing company data SHALL NOT be allowed
+    Tests CIS M365 7.0.0 (5.1.5.1) - User consent to apps accessing company data SHALL NOT be allowed
     #>
     param($Tenant)
 
@@ -13,11 +13,11 @@ function Invoke-CippTestCIS_5_1_5_1 {
             return
         }
 
-        $Cfg = $Auth | Select-Object -First 1
+        $Cfg = @($Auth)[0]
         $ConsentPolicies = $Cfg.defaultUserRolePermissions.permissionGrantPoliciesAssigned
 
         $RestrictedConsent = $ConsentPolicies -contains 'ManagePermissionGrantsForSelf.microsoft-user-default-low' -or
-                             ($ConsentPolicies | Where-Object { $_ -like '*low*' })
+                             ($ConsentPolicies.Where({ $_ -like '*low*' }))
 
         if (-not $ConsentPolicies -or $ConsentPolicies.Count -eq 0 -or ($ConsentPolicies -notcontains 'ManagePermissionGrantsForSelf.microsoft-user-default-legacy')) {
             $Status = 'Passed'

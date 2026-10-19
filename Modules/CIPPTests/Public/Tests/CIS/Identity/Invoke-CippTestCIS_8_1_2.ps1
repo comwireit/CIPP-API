@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_8_1_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (8.1.2) - Users SHALL NOT be able to send emails to a channel email address
+    Tests CIS M365 7.0.0 (8.1.2) - Users SHALL NOT be able to send emails to a channel email address
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_8_1_2 {
             return
         }
 
-        $Cfg = $Client | Select-Object -First 1
+        $Cfg = @($Client)[0]
 
         if ($Cfg.AllowEmailIntoChannel -eq $false) {
             $Status = 'Passed'

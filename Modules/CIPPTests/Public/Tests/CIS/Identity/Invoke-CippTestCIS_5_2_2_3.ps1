@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_2_3 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.2.3) - Conditional Access policies SHALL block legacy authentication
+    Tests CIS M365 7.0.0 (5.2.2.3) - Conditional Access policies SHALL block legacy authentication
     #>
     param($Tenant)
 
@@ -14,12 +14,12 @@ function Invoke-CippTestCIS_5_2_2_3 {
         }
 
         $LegacyClients = @('exchangeActiveSync', 'other')
-        $Matching = $CA | Where-Object {
+        $Matching = $CA.Where({
             $_.state -eq 'enabled' -and
             $_.grantControls.builtInControls -contains 'block' -and
             $_.conditions.clientAppTypes -and
-            ($_.conditions.clientAppTypes | Where-Object { $_ -in $LegacyClients }).Count -gt 0
-        }
+            $_.conditions.clientAppTypes.Where({ $_ -in $LegacyClients }).Count -gt 0
+        })
 
         if ($Matching) {
             $Status = 'Passed'

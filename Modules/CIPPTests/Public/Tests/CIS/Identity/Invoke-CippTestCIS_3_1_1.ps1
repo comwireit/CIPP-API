@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_3_1_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (3.1.1) - Microsoft 365 audit log search SHALL be enabled
+    Tests CIS M365 7.0.0 (3.1.1) - Microsoft 365 audit log search SHALL be enabled
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_3_1_1 {
             return
         }
 
-        $Cfg = $Audit | Select-Object -First 1
+        $Cfg = @($Audit)[0]
 
         if ($Cfg.UnifiedAuditLogIngestionEnabled -eq $true) {
             $Status = 'Passed'

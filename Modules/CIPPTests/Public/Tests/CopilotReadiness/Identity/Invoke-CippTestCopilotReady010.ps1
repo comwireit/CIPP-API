@@ -12,23 +12,27 @@ function Invoke-CippTestCopilotReady010 {
 
     try {
         $UserRegistrationDetails = Get-CIPPTestData -TenantFilter $Tenant -Type 'UserRegistrationDetails'
-        $AllUsers = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        $UsersSeen = $false
+        $LicensedUsers = [System.Collections.Generic.List[object]]::new()
+        Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'userPrincipalName', 'accountEnabled', 'assignedPlans' -Stream | ForEach-Object {
+            $UsersSeen = $true
+            if ($_.userPrincipalName -and $_.accountEnabled -eq $true -and $_.assignedPlans.Where({ $_.capabilityStatus -eq 'Enabled' }, 'First').Count) {
+                $LicensedUsers.Add([pscustomobject]@{ userPrincipalName = $_.userPrincipalName })
+            }
+        }
 
-        if (-not $UserRegistrationDetails -or -not $AllUsers) {
+        if (-not $UserRegistrationDetails -or -not $UsersSeen) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady010' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No MFA registration or user data found in database. Data collection may not yet have run for this tenant.' -Risk 'High' -Name 'All licensed users have MFA registered' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
             return
         }
 
         # Build lookup by UPN for matching
         $RegLookup = @{}
-        foreach ($Reg in ($UserRegistrationDetails | Where-Object { $_.userPrincipalName })) {
+        foreach ($Reg in ($UserRegistrationDetails.Where({ $_.userPrincipalName }))) {
             $RegLookup[$Reg.userPrincipalName.ToLower()] = $Reg
         }
 
-        $LicensedUsers = @($AllUsers | Where-Object {
-                $_.userPrincipalName -and $_.accountEnabled -eq $true -and
-                ($_.assignedPlans | Where-Object { $_.capabilityStatus -eq 'Enabled' })
-            })
 
         if ($LicensedUsers.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady010' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No licensed active users found in the tenant.' -Risk 'High' -Name 'All licensed users have MFA registered' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
@@ -52,17 +56,17 @@ function Invoke-CippTestCopilotReady010 {
 
         if ($NotRegistered.Count -eq 0) {
             $Status = 'Passed'
-            $Result = "All **$Total licensed users** have MFA registered — the tenant meets the MFA security baseline for Copilot deployment."
+            $Result = [System.Text.StringBuilder]::new("All **$Total licensed users** have MFA registered — the tenant meets the MFA security baseline for Copilot deployment.")
         } else {
             $Status = 'Failed'
-            $Result = "**$($NotRegistered.Count) of $Total licensed users ($([math]::Round(($NotRegistered.Count / $Total) * 100, 1))%)** do not have MFA registered.`n`n"
-            $Result += 'MFA is a security baseline requirement before deploying Copilot. Accounts without MFA present elevated risk when Copilot has access to tenant data.`n`n'
-            $Result += "Remediate by enforcing MFA via Conditional Access or per-user MFA, and requiring users to register via [aka.ms/mfasetup](https://aka.ms/mfasetup).`n`n"
+            $Result = [System.Text.StringBuilder]::new("**$($NotRegistered.Count) of $Total licensed users ($([math]::Round(($NotRegistered.Count / $Total) * 100, 1))%)** do not have MFA registered.`n`n")
+            $null = $Result.Append('MFA is a security baseline requirement before deploying Copilot. Accounts without MFA present elevated risk when Copilot has access to tenant data.`n`n')
+            $null = $Result.Append("Remediate by enforcing MFA via Conditional Access or per-user MFA, and requiring users to register via [aka.ms/mfasetup](https://aka.ms/mfasetup).`n`n")
             if ($NotRegistered.Count -le 20) {
-                $Result += "**Users without MFA registered:**`n"
-                foreach ($Upn in $NotRegistered) { $Result += "- $Upn`n" }
+                $null = $Result.Append("**Users without MFA registered:**`n")
+                foreach ($Upn in $NotRegistered) { $null = $Result.Append("- $Upn`n") }
             } else {
-                $Result += "**$($NotRegistered.Count) users** do not have MFA registered."
+                $null = $Result.Append("**$($NotRegistered.Count) users** do not have MFA registered.")
             }
         }
 

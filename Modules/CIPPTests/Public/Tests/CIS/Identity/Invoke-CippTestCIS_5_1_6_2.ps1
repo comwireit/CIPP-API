@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_6_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.6.2) - Guest user access SHALL be restricted
+    Tests CIS M365 7.0.0 (5.1.6.2) - Guest user access SHALL be restricted
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_5_1_6_2 {
             return
         }
 
-        $Cfg = $Auth | Select-Object -First 1
+        $Cfg = @($Auth)[0]
 
         # Restricted guest user role template ID
         $RestrictedGuest = '2af84b1e-32c8-42b7-82bc-daa82404023b'

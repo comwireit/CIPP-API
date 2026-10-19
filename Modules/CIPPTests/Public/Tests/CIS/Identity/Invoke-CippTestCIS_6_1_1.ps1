@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_6_1_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (6.1.1) - 'AuditDisabled' organizationally SHALL be 'False'
+    Tests CIS M365 7.0.0 (6.1.1) - 'AuditDisabled' organizationally SHALL be 'False'
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_6_1_1 {
             return
         }
 
-        $Cfg = $Org | Select-Object -First 1
+        $Cfg = @($Org)[0]
 
         if ($Cfg.AuditDisabled -eq $false) {
             $Status = 'Passed'

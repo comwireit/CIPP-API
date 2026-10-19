@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_1_3_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.3.2) - Idle session timeout SHALL be 3 hours or less for unmanaged devices
+    Tests CIS M365 7.0.0 (1.3.2) - Idle session timeout SHALL be 3 hours or less for unmanaged devices
     #>
     param($Tenant)
 
@@ -14,7 +14,7 @@ function Invoke-CippTestCIS_1_3_2 {
         }
 
         # CIS recommends a CA policy for unmanaged devices that enforces session signInFrequency <= 3 hours
-        $Matching = $CAPolicies | Where-Object {
+        $Matching = $CAPolicies.Where({
             $_.state -eq 'enabled' -and
             $_.sessionControls -and
             $_.sessionControls.signInFrequency -and
@@ -23,7 +23,7 @@ function Invoke-CippTestCIS_1_3_2 {
                 ($_.sessionControls.signInFrequency.type -eq 'hours' -and [int]$_.sessionControls.signInFrequency.value -le 3) -or
                 ($_.sessionControls.signInFrequency.type -eq 'days' -and [int]$_.sessionControls.signInFrequency.value -eq 0)
             )
-        }
+        })
 
         if ($Matching) {
             $Status = 'Passed'

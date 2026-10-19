@@ -12,24 +12,28 @@ function Invoke-CippTestCopilotReady009 {
 
     try {
         $ReadinessData = Get-CIPPTestData -TenantFilter $Tenant -Type 'CopilotReadinessActivity'
-        $AllUsers = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        $UsersSeen = $false
+        $LicensedUsers = [System.Collections.Generic.List[object]]::new()
+        Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'userPrincipalName', 'accountEnabled', 'assignedPlans' -Stream | ForEach-Object {
+            $UsersSeen = $true
+            if ($_.userPrincipalName -and $_.accountEnabled -eq $true -and $_.assignedPlans.Where({ $_.capabilityStatus -eq 'Enabled' }, 'First').Count) {
+                $LicensedUsers.Add([pscustomobject]@{ userPrincipalName = $_.userPrincipalName })
+            }
+        }
 
-        if (-not $ReadinessData -and -not $AllUsers) {
+        if (-not $ReadinessData -and -not $UsersSeen) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady009' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No Copilot readiness activity or user data found in database. Data collection may not yet have run for this tenant.' -Risk 'High' -Name 'Majority of users are Copilot-ready (Medium or above)' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
             return
         }
 
         $ReadinessLookup = @{}
         if ($ReadinessData) {
-            foreach ($Entry in ($ReadinessData | Where-Object { $_.userPrincipalName })) {
+            foreach ($Entry in ($ReadinessData.Where({ $_.userPrincipalName }))) {
                 $ReadinessLookup[$Entry.userPrincipalName.ToLower()] = $Entry
             }
         }
 
-        $LicensedUsers = @($AllUsers | Where-Object {
-                $_.userPrincipalName -and $_.accountEnabled -eq $true -and
-                ($_.assignedPlans | Where-Object { $_.capabilityStatus -eq 'Enabled' })
-            })
 
         if ($LicensedUsers.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady009' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No licensed active users found in the tenant.' -Risk 'High' -Name 'Majority of users are Copilot-ready (Medium or above)' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
@@ -57,13 +61,13 @@ function Invoke-CippTestCopilotReady009 {
 
         if ($ReadyPercent -ge $AdoptionThresholdPercent) {
             $Status = 'Passed'
-            $Result = "**$MediumOrAbove of $Total licensed users ($ReadyPercent%)** score Medium or above on Copilot readiness signals — above the $AdoptionThresholdPercent% threshold.`n`n"
-            $Result += 'This tenant has strong M365 engagement across the user base and is well-positioned for a Copilot rollout.'
+            $Result = [System.Text.StringBuilder]::new("**$MediumOrAbove of $Total licensed users ($ReadyPercent%)** score Medium or above on Copilot readiness signals — above the $AdoptionThresholdPercent% threshold.`n`n")
+            $null = $Result.Append('This tenant has strong M365 engagement across the user base and is well-positioned for a Copilot rollout.')
         } else {
             $Status = 'Failed'
-            $Result = "Only **$MediumOrAbove of $Total licensed users ($ReadyPercent%)** score Medium or above on Copilot readiness signals — below the $AdoptionThresholdPercent% threshold.`n`n"
-            $Result += "**$LowCount users** have low M365 engagement (≤2 of 6 signals). Copilot delivers the most value where users are already active across Teams, Outlook, and Office apps.`n`n"
-            $Result += "Consider running an M365 adoption campaign — focused on Teams meetings, Teams chat, Outlook, and OneDrive/SharePoint file usage — before or alongside a Copilot rollout.`n`n"
+            $Result = [System.Text.StringBuilder]::new("Only **$MediumOrAbove of $Total licensed users ($ReadyPercent%)** score Medium or above on Copilot readiness signals — below the $AdoptionThresholdPercent% threshold.`n`n")
+            $null = $Result.Append("**$LowCount users** have low M365 engagement (≤2 of 6 signals). Copilot delivers the most value where users are already active across Teams, Outlook, and Office apps.`n`n")
+            $null = $Result.Append("Consider running an M365 adoption campaign — focused on Teams meetings, Teams chat, Outlook, and OneDrive/SharePoint file usage — before or alongside a Copilot rollout.`n`n")
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady009' -TestType 'Identity' -Status $Status -ResultMarkdown $Result -Risk 'High' -Name 'Majority of users are Copilot-ready (Medium or above)' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'

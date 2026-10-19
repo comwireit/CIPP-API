@@ -4,15 +4,15 @@ function Invoke-ListIntuneScript {
         Entrypoint
     .ROLE
         Endpoint.MEM.Read
+    .DESCRIPTION
+        Lists Intune device management scripts (Windows, macOS, Linux, and remediation scripts) for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
-    $APIName = $Request.Params.CIPPEndpoint
-    $Headers = $Request.Headers
-    Write-LogMessage -Headers $Headers -API $APIName -message 'Accessed this API' -Sev Debug
-
     $TenantFilter = $Request.Query.tenantFilter
+    # Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.
+    $UseReportDB = $Request.Query.UseReportDB -eq $true
     $Results = [System.Collections.Generic.List[System.Object]]::new()
 
     $BulkRequests = @(
@@ -44,6 +44,30 @@ function Invoke-ListIntuneScript {
     )
 
     try {
+        if ($TenantFilter -eq 'AllTenants' -or $UseReportDB) {
+            try {
+                # Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.
+                if ($Request.Query.manualPagination -eq $true) {
+                    # Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.
+                    $PageSize = $Request.Query.PageSize -as [int]
+                    return ([HttpResponseContext]@{
+                            StatusCode = [HttpStatusCode]::OK
+                            # Continuation token from the previous page's Metadata.nextLink; opaque to callers.
+                            Body       = Get-CIPPReportPage -TenantFilter $TenantFilter -Type 'IntuneWindowsScripts', 'IntuneMacOSScripts', 'IntuneRemediationScripts', 'IntuneLinuxScripts' -PageSize $PageSize -ContinuationToken $Request.Query.nextLink -Report { param($Tenant) Get-CIPPIntuneScriptReport -TenantFilter $Tenant -ErrorAction Stop }
+                        })
+                }
+                $Results = Get-CIPPIntuneScriptReport -TenantFilter $TenantFilter -ErrorAction Stop
+                $StatusCode = [HttpStatusCode]::OK
+            } catch {
+                $StatusCode = [HttpStatusCode]::InternalServerError
+                $Results = $_.Exception.Message
+            }
+            return ([HttpResponseContext]@{
+                    StatusCode = $StatusCode
+                    Body       = @($Results)
+                })
+        }
+
         $BulkResults = New-GraphBulkRequest -Requests $BulkRequests -tenantid $TenantFilter
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
@@ -96,15 +120,16 @@ function Invoke-ListIntuneScript {
                 }
             }
 
-            $script | Add-Member -NotePropertyName 'ScriptAssignment' -NotePropertyValue ($ScriptAssignment -join ', ') -Force
-            $script | Add-Member -NotePropertyName 'ScriptExclude' -NotePropertyValue ($ScriptExclude -join ', ') -Force
+            $script | Add-Member -NotePropertyMembers ([ordered]@{
+                    ScriptAssignment = ($ScriptAssignment -join ', ')
+                    ScriptExclude    = ($ScriptExclude -join ', ')
+                }) -Force
         }
 
         $scripts | Add-Member -MemberType NoteProperty -Name scriptType -Value $scriptId
         Write-Host "$scriptId scripts count: $($scripts.Count)"
         $Results.AddRange(@($scripts))
     }
-
 
     return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK

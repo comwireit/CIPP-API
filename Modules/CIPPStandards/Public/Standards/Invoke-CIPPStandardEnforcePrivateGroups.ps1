@@ -42,8 +42,7 @@ function Invoke-CIPPStandardEnforcePrivateGroups {
 
     param($Tenant, $Settings)
 
-    $TestResult = Test-CIPPStandardLicense -StandardName 'EnforcePrivateGroups' -TenantFilter $Tenant `
-        -RequiredCapabilities @('SHAREPOINTWAC', 'SHAREPOINTSTANDARD', 'SHAREPOINTENTERPRISE', 'SHAREPOINTENTERPRISE_EDU', 'SHAREPOINTENTERPRISE_GOV', 'ONEDRIVE_BASIC', 'ONEDRIVE_ENTERPRISE')
+    $TestResult = Test-CIPPStandardLicense -StandardName 'EnforcePrivateGroups' -TenantFilter $Tenant -Preset SharePoint
     if ($TestResult -eq $false) { return $true }
 
     # Parse exclusion keywords from settings
@@ -121,6 +120,5 @@ function Invoke-CIPPStandardEnforcePrivateGroups {
             PublicGroups     = ''
         }
         Set-CIPPStandardsCompareField -FieldName 'standards.EnforcePrivateGroups' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -TenantFilter $Tenant
-        Add-CIPPBPAField -FieldName 'EnforcePrivateGroups' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $Tenant
     }
 }

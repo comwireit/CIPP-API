@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_6_2_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (6.2.1) - All forms of mail forwarding SHALL be blocked and/or disabled
+    Tests CIS M365 7.0.0 (6.2.1) - All forms of mail forwarding SHALL be blocked and/or disabled
     #>
     param($Tenant)
 
@@ -14,12 +14,12 @@ function Invoke-CippTestCIS_6_2_1 {
             return
         }
 
-        $Default = $Outbound | Where-Object { $_.IsDefault -eq $true } | Select-Object -First 1
-        if (-not $Default) { $Default = $Outbound | Select-Object -First 1 }
+        $Default = $Outbound.Where({ $_.IsDefault -eq $true }, 'First')[0]
+        if (-not $Default) { $Default = @($Outbound)[0] }
 
         $AutoForwardOff = $Default.AutoForwardingMode -eq 'Off'
 
-        $RemoteDefault = $RemoteDomain | Where-Object { $_.Name -eq 'Default' } | Select-Object -First 1
+        $RemoteDefault = $RemoteDomain.Where({ $_.Name -eq 'Default' }, 'First')[0]
         $RemoteForwardOff = -not $RemoteDefault -or $RemoteDefault.AutoForwardEnabled -eq $false
 
         if ($AutoForwardOff -and $RemoteForwardOff) {

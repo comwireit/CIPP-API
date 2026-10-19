@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_2_3 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.2.3) - 'Restrict non-admin users from creating tenants' SHALL be 'Yes'
+    Tests CIS M365 7.0.0 (5.1.2.3) - 'Restrict non-admin users from creating tenants' SHALL be 'Yes'
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_5_1_2_3 {
             return
         }
 
-        $Cfg = $Auth | Select-Object -First 1
+        $Cfg = @($Auth)[0]
 
         if ($Cfg.defaultUserRolePermissions.allowedToCreateTenants -eq $false) {
             $Status = 'Passed'

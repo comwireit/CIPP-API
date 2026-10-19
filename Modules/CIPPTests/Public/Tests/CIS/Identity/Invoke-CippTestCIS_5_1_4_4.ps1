@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_4_4 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.4.4) - Local administrator assignment SHALL be limited during Entra join
+    Tests CIS M365 7.0.0 (5.1.4.4) - Local administrator assignment SHALL be limited during Entra join
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_5_1_4_4 {
             return
         }
 
-        $Cfg = $DRP | Select-Object -First 1
+        $Cfg = @($DRP)[0]
         $RegType = $Cfg.azureADJoin.localAdmins.registeringUsers.'@odata.type'
 
         if ($RegType -in @('#microsoft.graph.enumeratedDeviceRegistrationMembership', '#microsoft.graph.noDeviceRegistrationMembership')) {

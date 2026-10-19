@@ -16,9 +16,19 @@ function Invoke-CippTestCopilotReady007 {
 
     try {
         $ReadinessData = Get-CIPPTestData -TenantFilter $Tenant -Type 'CopilotReadinessActivity'
-        $AllUsers = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        # Filter to users with an active M365 Apps (desktop) license plan — update channel only
+        # applies to users with a license that includes M365 Apps for desktop.
+        $UsersSeen = $false
+        $LicensedUsers = [System.Collections.Generic.List[object]]::new()
+        Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'userPrincipalName', 'accountEnabled', 'assignedPlans' -Stream | ForEach-Object {
+            $UsersSeen = $true
+            if ($_.userPrincipalName -and $_.accountEnabled -eq $true -and $_.assignedPlans.Where({ $_.service -eq 'MicrosoftOffice' -and $_.capabilityStatus -eq 'Enabled' }, 'First').Count) {
+                $LicensedUsers.Add([pscustomobject]@{ userPrincipalName = $_.userPrincipalName })
+            }
+        }
 
-        if (-not $ReadinessData -and -not $AllUsers) {
+        if (-not $ReadinessData -and -not $UsersSeen) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady007' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No Copilot readiness activity or user data found in database. Data collection may not yet have run for this tenant.' -Risk 'High' -Name 'Users are on a qualified M365 Apps update channel' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
             return
         }
@@ -26,17 +36,10 @@ function Invoke-CippTestCopilotReady007 {
         # Build lookup of readiness data keyed by UPN
         $ReadinessLookup = @{}
         if ($ReadinessData) {
-            foreach ($Entry in ($ReadinessData | Where-Object { $_.userPrincipalName })) {
+            foreach ($Entry in ($ReadinessData.Where({ $_.userPrincipalName }))) {
                 $ReadinessLookup[$Entry.userPrincipalName.ToLower()] = $Entry
             }
         }
-
-        # Filter to users with an active M365 Apps (desktop) license plan — update channel only
-        # applies to users with a license that includes M365 Apps for desktop.
-        $LicensedUsers = @($AllUsers | Where-Object {
-            $_.userPrincipalName -and $_.accountEnabled -eq $true -and
-            ($_.assignedPlans | Where-Object { $_.service -eq 'MicrosoftOffice' -and $_.capabilityStatus -eq 'Enabled' })
-        })
 
         if ($LicensedUsers.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady007' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No users with an active M365 Apps license were found. Update channel check is not applicable.' -Risk 'High' -Name 'Users are on a qualified M365 Apps update channel' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
@@ -59,19 +62,19 @@ function Invoke-CippTestCopilotReady007 {
 
         if ($ChannelPercent -ge $ChannelThresholdPercent) {
             $Status = 'Passed'
-            $Result = "**$QualifiedCount of $TotalUsers M365 Apps licensed users ($ChannelPercent%)** are on Current Channel or Monthly Enterprise Channel — above the $ChannelThresholdPercent% threshold.`n`n"
-            $Result += 'These users will receive Copilot feature updates for desktop Word, Excel, PowerPoint, Outlook, and OneNote.'
+            $Result = [System.Text.StringBuilder]::new("**$QualifiedCount of $TotalUsers M365 Apps licensed users ($ChannelPercent%)** are on Current Channel or Monthly Enterprise Channel — above the $ChannelThresholdPercent% threshold.`n`n")
+            $null = $Result.Append('These users will receive Copilot feature updates for desktop Word, Excel, PowerPoint, Outlook, and OneNote.')
         } else {
             $Status = 'Failed'
-            $Result = "Only **$QualifiedCount of $TotalUsers M365 Apps licensed users ($ChannelPercent%)** are on a qualified update channel — below the $ChannelThresholdPercent% threshold.`n`n"
-            $Result += 'Copilot in M365 desktop apps requires **Current Channel** or **Monthly Enterprise Channel**. '
-            $Result += "Users on Semi-Annual Enterprise Channel or other update rings will not receive Copilot features.`n`n"
-            $Result += "To remediate, update the Microsoft 365 Apps update channel via Microsoft Intune, Microsoft 365 admin center, or Group Policy.`n`n"
+            $Result = [System.Text.StringBuilder]::new("Only **$QualifiedCount of $TotalUsers M365 Apps licensed users ($ChannelPercent%)** are on a qualified update channel — below the $ChannelThresholdPercent% threshold.`n`n")
+            $null = $Result.Append('Copilot in M365 desktop apps requires **Current Channel** or **Monthly Enterprise Channel**. ')
+            $null = $Result.Append("Users on Semi-Annual Enterprise Channel or other update rings will not receive Copilot features.`n`n")
+            $null = $Result.Append("To remediate, update the Microsoft 365 Apps update channel via Microsoft Intune, Microsoft 365 admin center, or Group Policy.`n`n")
             if ($NotQualifiedUsers.Count -gt 0 -and $NotQualifiedUsers.Count -le 20) {
-                $Result += "**Users not on a qualified update channel:**`n"
-                foreach ($Upn in $NotQualifiedUsers) { $Result += "- $Upn`n" }
+                $null = $Result.Append("**Users not on a qualified update channel:**`n")
+                foreach ($Upn in $NotQualifiedUsers) { $null = $Result.Append("- $Upn`n") }
             } elseif ($NotQualifiedUsers.Count -gt 20) {
-                $Result += "**$($NotQualifiedUsers.Count) users** are not on a qualified update channel."
+                $null = $Result.Append("**$($NotQualifiedUsers.Count) users** are not on a qualified update channel.")
             }
         }
 

@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_2_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.2.2) - MFA SHALL be enabled for all users
+    Tests CIS M365 7.0.0 (5.2.2.2) - MFA SHALL be enabled for all users
     #>
     param($Tenant)
 
@@ -13,13 +13,13 @@ function Invoke-CippTestCIS_5_2_2_2 {
             return
         }
 
-        $Matching = $CA | Where-Object {
+        $Matching = $CA.Where({
             $_.state -eq 'enabled' -and
             $_.conditions.users.includeUsers -contains 'All' -and
             $_.grantControls -and
             ($_.grantControls.builtInControls -contains 'mfa' -or $_.grantControls.authenticationStrength) -and
             $_.conditions.applications.includeApplications -contains 'All'
-        }
+        })
 
         if ($Matching) {
             $Status = 'Passed'

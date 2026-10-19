@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_4_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (4.2) - Device enrollment for personally owned devices SHALL be blocked by default
+    Tests CIS M365 7.0.0 (4.2) - Device enrollment for personally owned devices SHALL be blocked by default
     #>
     param($Tenant)
 
@@ -13,19 +13,19 @@ function Invoke-CippTestCIS_4_2 {
             return
         }
 
-        $DefaultPlatform = $Enrollment | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration' -and $_.priority -eq 0 -or $_.displayName -eq 'All Users' } | Select-Object -First 1
-        if (-not $DefaultPlatform) { $DefaultPlatform = $Enrollment | Where-Object { $_.PSObject.Properties.Name -contains 'androidRestriction' } | Select-Object -First 1 }
+        $DefaultPlatform = $Enrollment.Where({ $_.'@odata.type' -eq '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration' -and $_.priority -eq 0 -or $_.displayName -eq 'All Users' }, 'First')[0]
+        if (-not $DefaultPlatform) { $DefaultPlatform = $Enrollment.Where({ $_.PSObject.Properties.Name -contains 'androidRestriction' }, 'First')[0] }
 
         if (-not $DefaultPlatform) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_4_2' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'Default Device Platform Restriction policy not found in cache.' -Risk 'Medium' -Name 'Device enrollment for personally owned devices is blocked by default' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Device Management'
             return
         }
 
-        $Failures = @()
+        $Failures = [System.Collections.Generic.List[string]]::new()
         foreach ($P in @('androidForWorkRestriction', 'androidRestriction', 'iosRestriction', 'macOSRestriction', 'windowsRestriction')) {
             $r = $DefaultPlatform.$P
             if ($r -and $r.personalDeviceEnrollmentBlocked -ne $true -and $r.platformBlocked -ne $true) {
-                $Failures += "$P : personal enrollment NOT blocked"
+                $Failures.Add("$P : personal enrollment NOT blocked")
             }
         }
 

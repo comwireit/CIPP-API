@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_3_2_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (3.2.1) - DLP policies SHALL be enabled
+    Tests CIS M365 7.0.0 (3.2.1) - DLP policies SHALL be enabled
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_3_2_1 {
             return
         }
 
-        $Enabled = $Dlp | Where-Object { $_.Mode -eq 'Enable' -and $_.Enabled -eq $true }
+        $Enabled = $Dlp.Where({ $_.Mode -eq 'Enable' -and $_.Enabled -eq $true })
 
         if ($Enabled.Count -gt 0) {
             $Status = 'Passed'

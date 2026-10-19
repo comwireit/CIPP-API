@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_3_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.3.2) - Custom banned passwords lists SHALL be used
+    Tests CIS M365 7.0.0 (5.2.3.2) - Custom banned passwords lists SHALL be used
     #>
     param($Tenant)
 
@@ -13,14 +13,14 @@ function Invoke-CippTestCIS_5_2_3_2 {
             return
         }
 
-        $PwdSetting = $Settings | Where-Object { $_.templateId -eq '5cf42378-d67d-4f36-ba46-e8b86229381d' -or $_.displayName -eq 'Password Rule Settings' } | Select-Object -First 1
+        $PwdSetting = $Settings.Where({ $_.templateId -eq '5cf42378-d67d-4f36-ba46-e8b86229381d' -or $_.displayName -eq 'Password Rule Settings' }, 'First')[0]
 
         if (-not $PwdSetting) {
             $Status = 'Failed'
             $Result = 'Password Rule Settings not found in directory settings — custom banned passwords have not been configured.'
         } else {
-            $Enforce = ($PwdSetting.values | Where-Object { $_.name -eq 'EnableBannedPasswordCheck' }).value
-            $Custom = ($PwdSetting.values | Where-Object { $_.name -eq 'BannedPasswordList' }).value
+            $Enforce = $(foreach ($Item in $PwdSetting.values) { if ($Item.name -eq 'EnableBannedPasswordCheck') { $Item } }).value
+            $Custom = $(foreach ($Item in $PwdSetting.values) { if ($Item.name -eq 'BannedPasswordList') { $Item } }).value
 
             if ($Enforce -eq 'True' -and -not [string]::IsNullOrWhiteSpace($Custom)) {
                 $Status = 'Passed'

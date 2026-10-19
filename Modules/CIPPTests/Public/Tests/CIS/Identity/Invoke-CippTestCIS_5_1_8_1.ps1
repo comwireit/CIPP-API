@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_1_8_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.1.8.1) - Password hash sync SHALL be enabled for hybrid deployments (Manual)
+    Tests CIS M365 7.0.0 (5.1.8.1) - Password hash sync SHALL be enabled for hybrid deployments (Manual)
     #>
     param($Tenant)
 
@@ -14,7 +14,7 @@ function Invoke-CippTestCIS_5_1_8_1 {
             return
         }
 
-        $OrgCfg = $Org | Select-Object -First 1
+        $OrgCfg = @($Org)[0]
         $IsHybrid = $OrgCfg.onPremisesSyncEnabled -eq $true
 
         if (-not $IsHybrid) {

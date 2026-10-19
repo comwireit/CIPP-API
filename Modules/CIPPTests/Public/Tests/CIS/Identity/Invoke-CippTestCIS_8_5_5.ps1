@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_8_5_5 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (8.5.5) - Meeting chat SHALL NOT allow anonymous users
+    Tests CIS M365 7.0.0 (8.5.5) - Meeting chat SHALL NOT allow anonymous users
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_8_5_5 {
             return
         }
 
-        $Cfg = $MP | Select-Object -First 1
+        $Cfg = @($MP)[0]
         $Acceptable = @('EnabledExceptAnonymous', 'Disabled')
 
         if ($Cfg.MeetingChatEnabledType -in $Acceptable) {

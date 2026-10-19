@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_7_2_9 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (7.2.9) - Guest access to a site or OneDrive SHALL expire automatically
+    Tests CIS M365 7.0.0 (7.2.9) - Guest access to a site or OneDrive SHALL expire automatically
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_7_2_9 {
             return
         }
 
-        $Cfg = $SPO | Select-Object -First 1
+        $Cfg = @($SPO)[0]
         $Required = $Cfg.ExternalUserExpirationRequired
         $Days = [int]$Cfg.ExternalUserExpireInDays
 

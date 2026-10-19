@@ -1,36 +1,59 @@
 function Invoke-CippTestCIS_1_1_4 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.1.4) - Administrative accounts SHALL use licenses with a reduced application footprint
+    Tests CIS M365 7.0.0 (1.1.4) - Administrative accounts SHALL use licenses with a reduced application footprint
     #>
     param($Tenant)
 
     try {
-        $Roles = Get-CIPPTestData -TenantFilter $Tenant -Type 'Roles'
-        $RoleAssignments = Get-CIPPTestData -TenantFilter $Tenant -Type 'RoleAssignments'
-        $Users = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        $Roles = Get-CippDbRole -TenantFilter $Tenant -IncludePrivilegedRoles
+        $RoleAssignmentScheduleInstances = Get-CIPPTestData -TenantFilter $Tenant -Type 'RoleAssignmentScheduleInstances'
+        $PrivilegedRoleIds = [System.Collections.Generic.HashSet[string]]::new()
+        $PrivilegedUserIds = [System.Collections.Generic.HashSet[string]]::new()
 
-        if (-not $Roles -or -not $RoleAssignments -or -not $Users) {
-            Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_1_4' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'Required cache (Roles, RoleAssignments, or Users) not found. Please refresh the cache for this tenant.' -Risk 'Medium' -Name 'Administrative accounts use licenses with a reduced application footprint' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged Access'
+        foreach ($Role in @($Roles)) {
+            $RoleTemplateId = if ($Role.roleTemplateId) { [string]$Role.roleTemplateId } elseif ($Role.RoletemplateId) { [string]$Role.RoletemplateId } else { $null }
+            if ($RoleTemplateId) {
+                [void]$PrivilegedRoleIds.Add($RoleTemplateId)
+            }
+
+            foreach ($Member in @($Role.members)) {
+                if ($Member.id) {
+                    [void]$PrivilegedUserIds.Add([string]$Member.id)
+                }
+            }
+        }
+
+        foreach ($Assignment in @($RoleAssignmentScheduleInstances)) {
+            if ($Assignment.roleDefinitionId -and $Assignment.assignmentType -eq 'Assigned' -and $null -eq $Assignment.endDateTime -and $PrivilegedRoleIds.Contains([string]$Assignment.roleDefinitionId) -and $Assignment.principalId) {
+                [void]$PrivilegedUserIds.Add([string]$Assignment.principalId)
+            }
+        }
+
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        $UsersSeen = $false
+        $PrivilegedUsers = [System.Collections.Generic.List[object]]::new()
+        if ($null -ne $Roles) {
+            Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'id', 'userPrincipalName', 'assignedLicenses', 'assignedPlans' -Stream | ForEach-Object {
+                $UsersSeen = $true
+                if ($PrivilegedUserIds.Contains($_.id)) { $PrivilegedUsers.Add($_) }
+            }
+        }
+
+        if ($null -eq $Roles -or -not $UsersSeen) {
+            Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_1_4' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'Required cache (Roles or Users) not found. Please refresh the cache for this tenant.' -Risk 'Medium' -Name 'Administrative accounts use licenses with a reduced application footprint' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged Access'
             return
         }
 
-        # SkuPartNumbers that are acceptable for admin accounts: Entra ID P1/P2 only
-        $AcceptableSkus = @('AAD_PREMIUM', 'AAD_PREMIUM_P2', 'EMS', 'EMSPREMIUM')
+        $LicensedAdmins = $PrivilegedUsers.Where({
+                $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
+            })
 
-        $PrivilegedRoleIds = ($Roles | Where-Object { $_.isPrivileged -eq $true }).id
-        $PrivilegedUserIds = ($RoleAssignments | Where-Object { $_.roleDefinitionId -in $PrivilegedRoleIds }).principalId | Select-Object -Unique
-        $PrivilegedUsers = $Users | Where-Object { $_.id -in $PrivilegedUserIds }
-
-        $LicensedAdmins = $PrivilegedUsers | Where-Object {
-            $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
-        }
-
-        $NonCompliant = $LicensedAdmins | Where-Object {
-            $skus = ($_.assignedPlans | ForEach-Object { $_.servicePlanId }) -join ','
-            $hasProductivity = $_.assignedPlans | Where-Object { $_.service -in @('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI') -and $_.capabilityStatus -eq 'Enabled' }
-            [bool]$hasProductivity
-        }
+        $ProductivityServices = [System.Collections.Generic.HashSet[string]]::new([string[]]@('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI'))
+        $NonCompliant = $LicensedAdmins.Where({
+                $hasProductivity = $_.assignedPlans.Where({ $ProductivityServices.Contains($_.service) -and $_.capabilityStatus -eq 'Enabled' }, 'First', 1)
+                [bool]$hasProductivity.Count
+            })
 
         if (-not $LicensedAdmins) {
             $Status = 'Passed'
@@ -41,7 +64,7 @@ function Invoke-CippTestCIS_1_1_4 {
         } else {
             $Status = 'Failed'
             $Result = "$($NonCompliant.Count) privileged user(s) have productivity workloads (Exchange/SharePoint/Teams/Skype) enabled on their administrative accounts.`n`n"
-            $Result += ($NonCompliant | Select-Object -First 25 | ForEach-Object { "- $($_.userPrincipalName)" }) -join "`n"
+            $Result += ($NonCompliant.Where({ $true }, 'First', 25) | ForEach-Object { "- $($_.userPrincipalName)" }) -join "`n"
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_1_4' -TestType 'Identity' -Status $Status -ResultMarkdown $Result -Risk 'Medium' -Name 'Administrative accounts use licenses with a reduced application footprint' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged Access'

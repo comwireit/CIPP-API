@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_1_3_7 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.3.7) - 'Third-party storage services' SHALL be restricted in 'Microsoft 365 on the web'
+    Tests CIS M365 7.0.0 (1.3.7) - 'Third-party storage services' SHALL be restricted in 'Microsoft 365 on the web'
     #>
     param($Tenant)
 
@@ -15,7 +15,7 @@ function Invoke-CippTestCIS_1_3_7 {
 
         # appId of "Microsoft 365 on the web" service principal
         $AppId = 'c1f33bc0-bdb4-4248-ba9b-096807ddb43e'
-        $SP = $ServicePrincipals | Where-Object { $_.appId -eq $AppId } | Select-Object -First 1
+        $SP = $ServicePrincipals.Where({ $_.appId -eq $AppId }, 'First')[0]
 
         if (-not $SP) {
             $Status = 'Passed'

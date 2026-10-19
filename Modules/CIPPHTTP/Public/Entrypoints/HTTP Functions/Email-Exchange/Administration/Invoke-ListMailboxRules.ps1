@@ -4,17 +4,32 @@ function Invoke-ListMailboxRules {
         Entrypoint
     .ROLE
         Exchange.Mailbox.Read
+    .DESCRIPTION
+        Lists inbox rules configured on mailboxes in a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     # Interact with query parameters or the body of the request.
     $TenantFilter = $Request.Query.tenantFilter
-    $UseReportDB = $Request.Query.UseReportDB
-
+    if (-not [string]::IsNullOrEmpty($TenantFilter) -and $TenantFilter -ne 'AllTenants') {
+        $TenantFilter = ConvertTo-CIPPODataFilterValue -Value $TenantFilter -Type String
+    }
+    # Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.
+    $UseReportDB = $Request.Query.UseReportDB -eq $true
     try {
         # If UseReportDB is specified, retrieve from report database
-        if ($UseReportDB -eq 'true') {
+        if ($UseReportDB) {
             try {
+                # Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.
+                if ($Request.Query.manualPagination -eq $true) {
+                    # Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.
+                    $PageSize = $Request.Query.PageSize -as [int]
+                    return ([HttpResponseContext]@{
+                            StatusCode = [HttpStatusCode]::OK
+                            # Continuation token from the previous page's Metadata.nextLink; opaque to callers.
+                            Body       = Get-CIPPReportPage -TenantFilter $TenantFilter -Type 'MailboxRules' -PageSize $PageSize -ContinuationToken $Request.Query.nextLink -Report { param($Tenant) Get-CIPPMailboxRulesReport -TenantFilter $Tenant -ErrorAction Stop }
+                        })
+                }
                 $GraphRequest = Get-CIPPMailboxRulesReport -TenantFilter $TenantFilter -ErrorAction Stop
                 $StatusCode = [HttpStatusCode]::OK
             } catch {
@@ -75,7 +90,7 @@ function Invoke-ListMailboxRules {
                     SkipLog          = $true
                 }
                 #Write-Host ($InputObject | ConvertTo-Json)
-                Start-CIPPOrchestrator -InputObject $InputObject
+                $InstanceId = Start-CIPPOrchestrator -InputObject $InputObject
                 Write-Host "Started mailbox rules orchestration with ID = '$InstanceId'"
             }
 
@@ -83,7 +98,7 @@ function Invoke-ListMailboxRules {
             $Metadata = [PSCustomObject]@{
                 QueueId = $RunningQueue.RowKey ?? $null
             }
-            $GraphRequest = $Rows | ForEach-Object {
+            $GraphRequest = $Rows | Select-CippAllowedTenantData -TenantProperty 'Tenant' | ForEach-Object {
                 $NewObj = $_.Rules | ConvertFrom-Json -ErrorAction SilentlyContinue
                 $NewObj | Add-Member -NotePropertyName 'Tenant' -NotePropertyValue $_.Tenant -Force
                 $NewObj
@@ -104,7 +119,7 @@ function Invoke-ListMailboxRules {
 
     } catch {
         $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
-        $StatusCode = [HttpStatusCode]::Forbidden
+        $StatusCode = [HttpStatusCode]::InternalServerError
         $GraphRequest = $ErrorMessage
 
         return ([HttpResponseContext]@{

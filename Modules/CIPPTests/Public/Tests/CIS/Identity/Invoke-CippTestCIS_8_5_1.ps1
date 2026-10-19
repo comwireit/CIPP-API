@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_8_5_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (8.5.1) - Anonymous users SHALL NOT be able to join a meeting
+    Tests CIS M365 7.0.0 (8.5.1) - Anonymous users SHALL NOT be able to join a meeting
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_8_5_1 {
             return
         }
 
-        $Cfg = $MP | Select-Object -First 1
+        $Cfg = @($MP)[0]
 
         if ($Cfg.AllowAnonymousUsersToJoinMeeting -eq $false) {
             $Status = 'Passed'

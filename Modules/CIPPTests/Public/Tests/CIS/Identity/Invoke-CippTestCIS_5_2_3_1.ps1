@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_3_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.3.1) - Microsoft Authenticator SHALL be configured to protect against MFA fatigue
+    Tests CIS M365 7.0.0 (5.2.3.1) - Microsoft Authenticator SHALL be configured to protect against MFA fatigue
     #>
     param($Tenant)
 
@@ -13,8 +13,8 @@ function Invoke-CippTestCIS_5_2_3_1 {
             return
         }
 
-        $Cfg = $AMP | Select-Object -First 1
-        $Authenticator = $Cfg.authenticationMethodConfigurations | Where-Object { $_.id -eq 'MicrosoftAuthenticator' } | Select-Object -First 1
+        $Cfg = @($AMP)[0]
+        $Authenticator = $Cfg.authenticationMethodConfigurations.Where({ $_.id -eq 'MicrosoftAuthenticator' }, 'First')[0]
 
         if (-not $Authenticator) {
             $Status = 'Failed'

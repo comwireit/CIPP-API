@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_1_3_9 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (1.3.9) - Shared bookings pages SHALL be restricted to select users
+    Tests CIS M365 7.0.0 (1.3.9) - Shared bookings pages SHALL be restricted to select users
     #>
     param($Tenant)
 
@@ -13,7 +13,7 @@ function Invoke-CippTestCIS_1_3_9 {
             return
         }
 
-        $Cfg = $OrgConfig | Select-Object -First 1
+        $Cfg = @($OrgConfig)[0]
 
         if ($Cfg.BookingsEnabled -eq $false) {
             $Status = 'Passed'

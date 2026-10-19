@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_2_1_6 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (2.1.6) - Exchange Online Spam Policies SHALL be set to notify administrators
+    Tests CIS M365 7.0.0 (2.1.6) - Exchange Online Spam Policies SHALL be set to notify administrators
     #>
     param($Tenant)
 
@@ -13,8 +13,8 @@ function Invoke-CippTestCIS_2_1_6 {
             return
         }
 
-        $Default = $Outbound | Where-Object { $_.IsDefault -eq $true } | Select-Object -First 1
-        if (-not $Default) { $Default = $Outbound | Select-Object -First 1 }
+        $Default = $Outbound.Where({ $_.IsDefault -eq $true }, 'First')[0]
+        if (-not $Default) { $Default = @($Outbound)[0] }
 
         $Compliant = $Default.NotifyOutboundSpam -eq $true -and
                      $Default.BccSuspiciousOutboundMail -eq $true -and

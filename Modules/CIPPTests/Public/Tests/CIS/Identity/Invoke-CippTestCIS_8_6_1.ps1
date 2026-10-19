@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_8_6_1 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (8.6.1) - Users SHALL be able to report security concerns in Teams
+    Tests CIS M365 7.0.0 (8.6.1) - Users SHALL be able to report security concerns in Teams
     #>
     param($Tenant)
 
@@ -14,8 +14,8 @@ function Invoke-CippTestCIS_8_6_1 {
             return
         }
 
-        $M = $Messaging | Select-Object -First 1
-        $S = $Submission | Select-Object -First 1
+        $M = @($Messaging)[0]
+        $S = @($Submission)[0]
 
         $TeamsReporting = $M.AllowSecurityEndUserReporting -eq $true
         $DefenderReporting = ($S.ReportJunkToCustomizedAddress -eq $true -or $S.ReportPhishToCustomizedAddress -eq $true) -and

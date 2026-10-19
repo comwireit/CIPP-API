@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_2_1_2 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (2.1.2) - Common Attachment Types Filter SHALL be enabled
+    Tests CIS M365 7.0.0 (2.1.2) - Common Attachment Types Filter SHALL be enabled
     #>
     param($Tenant)
 
@@ -13,8 +13,8 @@ function Invoke-CippTestCIS_2_1_2 {
             return
         }
 
-        $Default = $Malware | Where-Object { $_.IsDefault -eq $true } | Select-Object -First 1
-        if (-not $Default) { $Default = $Malware | Select-Object -First 1 }
+        $Default = $Malware.Where({ $_.IsDefault -eq $true }, 'First')[0]
+        if (-not $Default) { $Default = @($Malware)[0] }
 
         if ($Default.EnableFileFilter -eq $true) {
             $Status = 'Passed'

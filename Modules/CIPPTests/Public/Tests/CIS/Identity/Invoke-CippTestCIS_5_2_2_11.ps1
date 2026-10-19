@@ -1,7 +1,7 @@
 function Invoke-CippTestCIS_5_2_2_11 {
     <#
     .SYNOPSIS
-    Tests CIS M365 6.0.1 (5.2.2.11) - Sign-in frequency for Intune Enrollment SHALL be 'Every time'
+    Tests CIS M365 7.0.0 (5.2.2.11) - Sign-in frequency for Intune Enrollment SHALL be 'Every time'
     #>
     param($Tenant)
 
@@ -16,13 +16,13 @@ function Invoke-CippTestCIS_5_2_2_11 {
         # Microsoft Intune Enrollment app GUID
         $IntuneEnrollmentApp = 'd4ebce55-015a-49b5-a083-c84d1797ae8c'
 
-        $Matching = $CA | Where-Object {
+        $Matching = $CA.Where({
             $_.state -eq 'enabled' -and
             $_.conditions.applications.includeApplications -contains $IntuneEnrollmentApp -and
             $_.sessionControls -and
             $_.sessionControls.signInFrequency -and
             $_.sessionControls.signInFrequency.frequencyInterval -eq 'everyTime'
-        }
+        })
 
         if ($Matching) {
             $Status = 'Passed'
